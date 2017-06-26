@@ -2,7 +2,6 @@ import os
 import sys
 import argparse
 import pandas as pd
-import pymongo
 import datetime as dt
 import pytz
 from configparser import SafeConfigParser
@@ -12,6 +11,9 @@ sys.path.append(mpath)
 from py_ctp.ctp_struct import *
 from py_ctp.trade import Trade
 from py_ctp.quote import Quote
+mpath = os.path.join(os.path.abspath('..'), 'PyShare\\PyShare')
+sys.path.append(mpath)
+import Mongo
 
 class Test:
 	def __init__(self, args):
@@ -22,24 +24,23 @@ class Test:
 		self.ProductClass2 = list() if args.product is None else [x.upper() for x in args.product]
 		self.ExchangeID2 = list() if args.exchange is None else [x.upper() for x in args.exchange]
 		self.ProductID2 = list() if args.underlying is None else [x.upper() for x in args.underlying]
-		self.account = 'real_eb1' if args.account is None else args.account[0]
-		self.mongodb = 'mongodb1' if args.mongodb is None else args.mongodb[0]
+		account = 'real_eb1' if args.account is None else args.account[0]
+		mongodb = 'mongodb1' if args.mongodb is None else args.mongodb[0]
 # 		print(self.ProductClass2)
 # 		print(self.ExchangeID2)
 # 		print(self.ProductID2)
-# 		print(self.account)
-# 		print(self.mongodb)
+# 		print(account)
+# 		print(mongodb)
 		
-# 		current path is '...\PyCtp'			
+# 		ctp connection, current path is '...\PyCtp'			
 		config = SafeConfigParser()
-		config.read(os.path.join(self.rootdir, 'config.ini'))	
-		
-# 		ctp connection		
-		self.BrokerID = config.get(self.account, 'BrokerID')
-		self.UserID = config.get(self.account, 'UserID')
-		self.Password = config.get(self.account, 'Password')
-		self.q_ip = config.get(self.account, 'q_ip')
-		self.t_ip = config.get(self.account, 't_ip')
+		ctp_path = os.path.join(os.path.abspath('..'), 'PyShare', 'config', 'ctp_connection.ini')
+		config.read(ctp_path)		
+		self.BrokerID = config.get(account, 'BrokerID')
+		self.UserID = config.get(account, 'UserID')
+		self.Password = config.get(account, 'Password')
+		self.q_ip = config.get(account, 'q_ip')
+		self.t_ip = config.get(account, 't_ip')
 		self.Session = ''
 		self.q = Quote()
 		self.t = Trade()
@@ -48,20 +49,9 @@ class Test:
 		self.TradingDay = ''
 
 # 		create connection to mongodb, make sure it is primary connection
-		self.client = pymongo.MongoClient(config.get(self.mongodb, 'ip1'), maxPoolSize=100)
-		if self.client.is_primary:
-			print(dt.datetime.today(), 'mongodb is conncected on ip1')
-			self.db = self.client[config.get(self.mongodb, 'db')]
-		else:
-			print(dt.datetime.today(), 'mongodb ip1 is not primary, try ip2')
-			self.client.close()
-			self.client = pymongo.MongoClient(config.get(self.mongodb, 'ip2'), maxPoolSize=100)
-			if self.client.is_primary:
-				print(dt.datetime.today(), 'mongodb is conncected on ip2')
-				self.db = self.client[config.get(self.mongodb, 'db')]
-			else:
-				input(dt.datetime.today(), 'mongodb connection error, press enter key to exit')
-				sys.exit(2)
+		mongo_path = os.path.join(os.path.abspath('..'), 'PyShare', 'config', 'mongodb_connection.ini')
+		self.mdb = Mongo.MongoDB(mongo_path)
+		mdb_connection_result = self.mdb.connect(mongodb)
 			
 # ----------------- quote related method -----------------
 
@@ -102,9 +92,8 @@ class Test:
 			else:
 				for index, row in gg.iterrows():
 # 					print(row['InstrumentID'], row['Symbol'])
-# 	 				print(self.db[row['Symbol']].index_information())
 # 	 				create index in mongodb for faster query
-					self.db[row['Symbol']].create_index([('TradingDay', pymongo.ASCENDING)])
+					self.mdb.create_index_once(row['Symbol'], 'TradingDay', True)
 # 	 		 		case sensitive, e.g., IF1612 is not the same as if1612
 					self.q.SubscribeMarketData(row['InstrumentID'])	
 		else:
@@ -118,7 +107,6 @@ class Test:
 # 		ExchangeID --> ExchangeID2, InstrumentID --> Instrumentid2, e.g., Symbol = 'SHFE.CU1612'
 		kk = self.contractdf.loc[self.contractdf['InstrumentID']==tk.getInstrumentID()]			
 		cc = kk['Symbol'].values.tolist()[0]
-		collection = self.db[cc]
 			
 # 		convert TradingDay='20161115' to TradingDay='2016-11-15' format, e.g., _id = 2016-11-15 13:26:00
 # 		dt.datetime.strptime(tk.getTradingDay(),'%Y%m%d').strftime('%Y-%m-%d')
@@ -151,11 +139,8 @@ class Test:
 					else:
 						sdd['PRICE'] = tk.getPreSettlementPrice()
 			
-# 	 		check if a collection exists, upsert = update + insert
-# 	 		trust the latest data is the correct data, even if the previous data maybe correct   
-			bulk = collection.initialize_ordered_bulk_op()	
-			bulk.find({'_id':sdd['_id']}).upsert().update({'$set':sdd})		
-			result = bulk.execute()
+# 	 		check if a collection exists, upsert = update + insert, trust the latest data is the correct data, even if the previous data maybe correct
+			result = self.mdb.upsert_dict(cc, sdd, '_id')
 
 	def q_OnRspSubMarketData(self, pSpecificInstrument = CThostFtdcSpecificInstrumentField, pRspInfo = CThostFtdcRspInfoField, nRequestID = int, bIsLast = bool):
 # 		print(dt.datetime.today(), '---- q_OnRspSubMarketData ----')
@@ -372,8 +357,8 @@ if __name__ == "__main__":
 
 
 # cd 'Z:\williamyizhu On My Mac\Documents\workspace\PyCtp'
-# python .\live_quote.py -m t -a real_eb2 -d mongodb1
-# python .\live_quote.py -m t -a real_xh -d mongodb1
-# python .\live_quote.py -m t -a real_ht -d mongodb1
-# python .\live_quote.py -m q -p futures -e dce -a real_eb2 -d mongodb1
-# python .\live_quote.py -m q -p options -e dce -a real_eb2 -d mongodb1
+# python .\live_quote.py -m t -a real_eb1 -d ctp_mongodb2
+# python .\live_quote.py -m t -a real_xh1 -d ctp_mongodb2
+# python .\live_quote.py -m t -a real_ht1 -d ctp_mongodb2
+# python .\live_quote.py -m q -p futures -e dce -a real_eb2 -d ctp_mongodb2
+# python .\live_quote.py -m q -p options -e dce -a real_eb2 -d ctp_mongodb2
