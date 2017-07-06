@@ -360,5 +360,5 @@ if __name__ == "__main__":
 # python .\live_quote.py -m t -a real_eb1 -d ctp_mongodb2
 # python .\live_quote.py -m t -a real_xh1 -d ctp_mongodb2
 # python .\live_quote.py -m t -a real_ht1 -d ctp_mongodb2
-# python .\live_quote.py -m q -p futures -e dce -a real_eb2 -d ctp_mongodb2
-# python .\live_quote.py -m q -p options -e dce -a real_eb2 -d ctp_mongodb2
+# python .\live_quote.py -m q -p futures -e dce -a real_eb1 -d ctp_mongodb2
+# python .\live_quote.py -m q -p options -e dce -a real_eb1 -d ctp_mongodb2
