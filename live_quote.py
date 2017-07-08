@@ -91,9 +91,9 @@ class Test:
 				sys.exit(2)
 			else:
 				for index, row in gg.iterrows():
-# 					print(row['InstrumentID'], row['Symbol'])
-# 	 				create index in mongodb for faster query
-					self.mdb.create_index_once(row['Symbol'], 'TradingDay', True)
+					print(row['InstrumentID'], row['Symbol'])
+# 	 				** create index in mongodb for faster query, removed, using single python script instead **
+# 					self.mdb.create_index_once(row['Symbol'], 'TradingDay', True)
 # 	 		 		case sensitive, e.g., IF1612 is not the same as if1612
 					self.q.SubscribeMarketData(row['InstrumentID'])	
 		else:
