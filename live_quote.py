@@ -90,12 +90,14 @@ class Test:
 				input('no matched symbols, press enter key to exit')
 				sys.exit(2)
 			else:
+				print(dt.datetime.today(), '---- SubscribeMarketData ----')
 				for index, row in gg.iterrows():
-					print(row['InstrumentID'], row['Symbol'])
+# 					print(row['InstrumentID'], row['Symbol'])
 # 	 				** create index in mongodb for faster query, removed, using single python script instead **
 # 					self.mdb.create_index_once(row['Symbol'], 'TradingDay', True)
 # 	 		 		case sensitive, e.g., IF1612 is not the same as if1612
 					self.q.SubscribeMarketData(row['InstrumentID'])	
+				print(dt.datetime.today(), '---- SubscribeMarketData finished ----')
 		else:
 			print('OnRspUserLogin Error', pRspInfo)
 							
