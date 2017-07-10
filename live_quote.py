@@ -25,7 +25,7 @@ class Test:
 		self.ExchangeID2 = list() if args.exchange is None else [x.upper() for x in args.exchange]
 		self.ProductID2 = list() if args.underlying is None else [x.upper() for x in args.underlying]
 		account = 'real_eb1' if args.account is None else args.account[0]
-		mongodb = 'mongodb1' if args.mongodb is None else args.mongodb[0]
+		self.mongodb = 'mongodb2' if args.mongodb is None else args.mongodb[0]
 # 		print(self.ProductClass2)
 # 		print(self.ExchangeID2)
 # 		print(self.ProductID2)
@@ -51,7 +51,8 @@ class Test:
 # 		create connection to mongodb, make sure it is primary connection
 		mongo_path = os.path.join(os.path.abspath('..'), 'PyShare', 'config', 'mongodb_connection.ini')
 		self.mdb = Mongo.MongoDB(mongo_path)
-		mdb_connection_result = self.mdb.connect(mongodb)
+# 		run mongodb connection after user login confirmed, e.g., q_OnRspUserLogin(), OnRspUserLogin()
+# 		mdb_connection_result = self.mdb.connect(mongodb)
 			
 # ----------------- quote related method -----------------
 
@@ -72,6 +73,8 @@ class Test:
 # 		print(nRequestID)
 # 		print(bIsLast)
 		if pRspInfo.getErrorID() == 0:
+			print('OnRspUserLogin Successful', pRspInfo)
+			self.mdb.connect(self.mongodb)
 			self.TradingDay = pRspUserLogin.getTradingDay()			
 			self.contractdf = pd.read_csv(os.path.join(self.rootdir, 'contract.csv'))
 # 	 		print(self.contractdf)		
@@ -153,7 +156,7 @@ class Test:
 		pass
 	
 	def StartQuote(self):
-		print(dt.datetime.today(), '---- StartQuote ----')
+		print(dt.datetime.today(), '---- CTP Quote ----')
 		api = self.q.CreateApi()
 		spi = self.q.CreateSpi()
 		self.q.RegisterSpi(spi)
@@ -189,6 +192,8 @@ class Test:
 # 		print(nRequestID)
 # 		print(bIsLast)
 		if pRspInfo.getErrorID() == 0:
+			print('OnRspUserLogin Successful', pRspInfo)
+			self.mdb.connect(self.mongodb)
 			self.Session = pRspUserLogin.getSessionID()
 			self.t.ReqSettlementInfoConfirm(BrokerID=self.BrokerID, InvestorID=self.UserID)
 			self.TradingDay = pRspUserLogin.getTradingDay()
@@ -292,7 +297,7 @@ class Test:
 # 			self.StartQuote()
 			
 	def Run(self):
-		print(dt.datetime.today(), '---- Run ----')
+		print(dt.datetime.today(), '---- CTP Trade ----')
 		api = self.t.CreateApi()
 		spi = self.t.CreateSpi()
 		self.t.RegisterSpi(spi)
